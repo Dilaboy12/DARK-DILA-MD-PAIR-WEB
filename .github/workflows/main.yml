@@ -1,56 +1,99 @@
-name: DARK DILA-MD PAIR
+name: DARK DILA-MD WhatsApp Bot
 
 on:
   workflow_dispatch:
-    inputs:
-      owner_number:
-        description: "Owner WhatsApp Number (with country code)"
-        required: true
-        type: string
-
-      pairing_number:
-        description: "WhatsApp Number to Pair (with country code)"
-        required: true
-        type: string
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 concurrency:
-  group: dark-dila-pair
+  group: dark-dila-md-bot
   cancel-in-progress: true
 
 jobs:
-  pairing:
+  start-bot:
+    name: Start DARK DILA-MD
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 350
 
     env:
       NODE_ENV: production
-      OWNER_NUMBER: ${{ inputs.owner_number }}
-      PAIRING_NUMBER: ${{ inputs.pairing_number }}
+      OWNER_NUMBER: ${{ secrets.OWNER_NUMBER }}
+      PAIRING_NUMBER: ${{ secrets.PAIRING_NUMBER }}
+      SESSION_ID: ${{ secrets.SESSION_ID }}
       MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
       MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
 
     steps:
-      - name: Checkout
+      # Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      # Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Validate
+      # Install dependencies
+      - name: Install Dependencies
         run: |
-          test -n "$OWNER_NUMBER" || exit 1
-          test -n "$PAIRING_NUMBER" || exit 1
-          test -n "$MEGA_EMAIL" || exit 1
-          test -n "$MEGA_PASSWORD" || exit 1
-          echo "Configuration validated."
+          npm install --legacy-peer-deps --no-audit --no-fund
+          npm ls megajs
+          npm ls @whiskeysockets/baileys
 
-      - name: Start Pairing
-        run: timeout 330m npm start
+      # Create required folders
+      - name: Create Directories
+        run: |
+          mkdir -p session
+          mkdir -p plugins
+          mkdir -p data
+
+      # Validate configuration
+      - name: Validate Configuration
+        run: |
+          node -e "require('./config'); console.log('Config loaded successfully')"
+          node -e "require('./mega'); console.log('MEGA module loaded successfully')"
+          echo "Configuration validation completed."
+
+      # Check Session configuration
+      - name: Check Session
+        run: |
+          if [ -n "$SESSION_ID" ]; then
+            echo "Existing MEGA session detected."
+          else
+            echo "No SESSION_ID found."
+            echo "Fresh Pair Code login will be required."
+          fi
+
+      # Start WhatsApp Bot
+      - name: Start DARK DILA-MD
+        run: |
+          echo "=================================="
+          echo "       DARK DILA-MD START"
+          echo "=================================="
+
+          set +e
+          timeout 340m npm start
+          STATUS=$?
+          set -e
+
+          if [ "$STATUS" -eq 124 ]; then
+            echo "Bot runtime limit reached."
+          elif [ "$STATUS" -ne 0 ]; then
+            echo "Bot stopped with error: $STATUS"
+            exit "$STATUS"
+          else
+            echo "Bot stopped normally."
+          fi
+
+      # Finish
+      - name: Bot Status
+        if: always()
+        run: |
+          echo "=================================="
+          echo "DARK DILA-MD workflow finished."
+          echo "=================================="
