@@ -1,0 +1,76 @@
+name: DARK DILA-MD PAIR SESSION
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner_number:
+        description: "Owner WhatsApp Number (with country code)"
+        required: true
+        type: string
+      pairing_number:
+        description: "WhatsApp Number to Pair (with country code)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dark-dila-pair-session
+  cancel-in-progress: true
+
+jobs:
+  pair:
+    name: Generate Pair Code and Session ID
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+
+    env:
+      NODE_ENV: production
+      OWNER_NUMBER: ${{ inputs.owner_number }}
+      PAIRING_NUMBER: ${{ inputs.pairing_number }}
+      MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
+      MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Settings
+        run: |
+          test -n "$OWNER_NUMBER" || {
+            echo "OWNER_NUMBER is missing"
+            exit 1
+          }
+
+          test -n "$PAIRING_NUMBER" || {
+            echo "PAIRING_NUMBER is missing"
+            exit 1
+          }
+
+          test -n "$MEGA_EMAIL" || {
+            echo "MEGA_EMAIL secret is missing"
+            exit 1
+          }
+
+          test -n "$MEGA_PASSWORD" || {
+            echo "MEGA_PASSWORD secret is missing"
+            exit 1
+          }
+
+          echo "All settings validated."
+
+      - name: Start Pairing
+        run: |
+          echo "=================================="
+          echo "       DARK DILA-MD PAIR"
+          echo "=================================="
+          timeout 330m npm start
