@@ -3,8 +3,8 @@ const fs = require("fs");
 
 function upload(filePath, fileName) {
     return new Promise((resolve, reject) => {
-        const email = process.env.MEGA_EMAIL;
-        const password = process.env.MEGA_PASSWORD;
+        const email = "",
+        const password = "",
 
         if (!email || !password) {
             return reject(new Error("MEGA_EMAIL or MEGA_PASSWORD is missing"));
