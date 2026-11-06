@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>DARK DILA-MD — SESSION</title>
+
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  />
+
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+
+    :root {
+      --purple: #8b5cf6;
+      --blue: #3b82f6;
+      --cyan: #06b6d4;
+      --pink: #ec4899;
+      --white: #ffffff;
+      --muted: #cbd5e1;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 20px 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-x: hidden;
+      font-family: "Inter", sans-serif;
+      color: var(--white);
+      background:
+        radial-gradient(circle at 10% 15%, rgba(168,85,247,.38), transparent 28%),
+        radial-gradient(circle at 90% 15%, rgba(6,182,212,.30), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(236,72,153,.30), transparent 35%),
+        linear-gradient(135deg, #050316, #0b0524, #07152e, #180523);
+      position: relative;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: .25;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    body::before {
+      background: linear-gradient(135deg, var(--purple), var(--blue), var(--cyan));
+      top: -220px;
+      left: -170px;
+      animation: floatOne 9s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      bottom: -230px;
+      right: -180px;
+      animation: floatTwo 11s ease-in-out infinite alternate;
+    }
+
+    @keyframes floatOne {
+      to { transform: translate(80px, 90px) scale(1.2); }
+    }
+
+    @keyframes floatTwo {
+      to { transform: translate(-80px, -80px) scale(1.25); }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 470px;
+      position: relative;
+      padding: 30px 23px 22px;
+      background: linear-gradient(145deg, rgba(24,12,55,.86), rgba(5,12,38,.82));
+      border: 1px solid rgba(168,85,247,.32);
+      border-radius: 30px;
+      box-shadow: 0 30px 90px rgba(0,0,0,.55),
+                  0 0 50px rgba(139,92,246,.10),
+                  inset 0 1px 0 rgba(255,255,255,.08);
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      overflow: hidden;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 17px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 27px;
+      background: linear-gradient(135deg, var(--purple), var(--blue), var(--cyan));
+      color: white;
+      font-size: 34px;
+      box-shadow: 0 0 25px rgba(139,92,246,.5),
+                  0 0 55px rgba(6,182,212,.2);
+      animation: logoFloat 4s ease-in-out infinite;
+    }
+
+    @keyframes logoFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px); }
+    }
+
+    .title {
+      font-size: 29px;
+      font-weight: 900;
+      letter-spacing: 1.4px;
+      background: linear-gradient(90deg, #fff, #c4b5fd, #67e8f9, #f9a8d4, #fff);
+      background-size: 250% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: textGradient 5s linear infinite;
+    }
+
+    @keyframes textGradient {
+      to { background-position: 250% center; }
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .brand-line {
+      width: 70px;
+      height: 3px;
+      margin: 13px auto 0;
+      border-radius: 30px;
+      background: linear-gradient(90deg, var(--pink), var(--purple), var(--cyan));
+      box-shadow: 0 0 12px rgba(139,92,246,.8);
+    }
+
+    .input-group {
+      margin-bottom: 16px;
+    }
+
+    .input-label {
+      display: block;
+      margin-bottom: 9px;
+      color: #d8d9ff;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .input-field {
+      width: 100%;
+      height: 53px;
+      padding: 0 16px;
+      color: white;
+      font-family: "Inter", sans-serif;
+      font-size: 14px;
+      background: linear-gradient(135deg, rgba(139,92,246,.08), rgba(6,182,212,.06));
+      border: 1px solid rgba(139,92,246,.25);
+      border-radius: 15px;
+      outline: none;
+      transition: .3s ease;
+    }
+
+    .input-field::placeholder {
+      color: #64748b;
+    }
+
+    .input-field:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(6,182,212,.08),
+                  0 0 25px rgba(6,182,212,.12);
+    }
+
+    .generate-btn {
+      width: 100%;
+      height: 53px;
+      margin-bottom: 15px;
+      border: none;
+      border-radius: 15px;
+      color: white;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(100deg, #7c3aed, #2563eb, #06b6d4, #9333ea);
+      background-size: 250% auto;
+      box-shadow: 0 10px 28px rgba(99,102,241,.28);
+      transition: .3s ease;
+      animation: buttonGradient 5s linear infinite;
+    }
+
+    @keyframes buttonGradient {
+      to { background-position: 250% center; }
+    }
+
+    .generate-btn i {
+      margin-right: 7px;
+    }
+
+    .generate-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(99,102,241,.38);
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 18px 0;
+    }
+
+    .loading i {
+      font-size: 25px;
+      color: var(--cyan);
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .code-display {
+      min-height: 58px;
+      padding: 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(139,92,246,.08), rgba(6,182,212,.06));
+      border: 1px solid rgba(139,92,246,.18);
+      color: #94a3b8;
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .success-message {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: monospace;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      color: #4ade80;
+      text-shadow: 0 0 12px rgba(74,222,128,.4);
+    }
+
+    .error-message {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fb7185;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .copy-btn {
+      width: 100%;
+      height: 49px;
+      border-radius: 15px;
+      border: 1px solid rgba(168,85,247,.20);
+      color: #e9d5ff;
+      background: linear-gradient(135deg, rgba(139,92,246,.09), rgba(236,72,153,.07));
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: .3s ease;
+    }
+
+    .copy-btn:hover {
+      transform: translateY(-2px);
+      color: white;
+      border-color: rgba(236,72,153,.4);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      padding-top: 17px;
+      border-top: 1px solid rgba(255,255,255,.07);
+      color: #64748b;
+      font-size: 10px;
+      letter-spacing: .5px;
+    }
+
+    .footer strong {
+      background: linear-gradient(90deg, #c084fc, #22d3ee, #f472b6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .container {
+        padding: 25px 17px 19px;
+        border-radius: 25px;
+      }
+      .logo {
+        width: 76px;
+        height: 76px;
+        font-size: 29px;
+      }
+      .title { font-size: 24px; }
+      .subtitle { font-size: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="header">
+      <div class="logo">
+        <i class="fas fa-robot"></i>
+      </div>
+
+      <h1 class="title">DARK DILA-MD</h1>
+
+      <p class="subtitle">
+        Secure WhatsApp Device Connection
+      </p>
+
+      <div class="brand-line"></div>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label" for="mobileNumber">
+        Enter your WhatsApp number with country code
+      </label>
+
+      <input
+        type="tel"
+        id="mobileNumber"
+        class="input-field"
+        placeholder="947XXXXXXXX"
+        autocomplete="tel"
+        inputmode="numeric"
+      />
+    </div>
+
+    <button class="generate-btn" id="submit">
+      <i class="fas fa-key"></i>
+      Generate Pair Code
+    </button>
+
+    <div class="loading" id="loading">
+      <i class="fas fa-spinner"></i>
+      <p style="margin-top:8px;font-size:12px;color:#cbd5e1;">
+        Generating your pair code...
+      </p>
+    </div>
+
+    <div class="code-display" id="codeDisplay">
+      Your pair code will appear here
+    </div>
+
+    <button class="copy-btn" id="copy" type="button">
+      <i class="fas fa-copy"></i>
+      Copy Pair Code
+    </button>
+
+    <div class="footer">
+      <p>
+        © 2026 <strong>DARK DILA-MD</strong>. All rights reserved.
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    const submitButton = document.getElementById("submit");
+    const numberInput = document.getElementById("mobileNumber");
+    const codeDisplay = document.getElementById("codeDisplay");
+    const loading = document.getElementById("loading");
+    const copyButton = document.getElementById("copy");
+
+    let generatedCode = "";
+
+    submitButton.addEventListener("click", async (event) => {
+      event.preventDefault();
+
+      const number = numberInput.value.replace(/[^0-9]/g, "");
+
+      if (!number || number.length < 10 || number.length > 15) {
+        codeDisplay.innerHTML =
+          '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Enter a valid number with country code</div>';
+        return;
+      }
+
+      submitButton.disabled = true;
+      loading.style.display = "block";
+      codeDisplay.textContent = "Please wait...";
+      generatedCode = "";
+
+      try {
+        const response = await fetch(
+          `/pair?number=${encodeURIComponent(number)}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.code) {
+          throw new Error(data.error || "Pair code generation failed");
+        }
+
+        generatedCode = String(data.code).replace(/[^A-Z0-9]/gi, "");
+
+        codeDisplay.innerHTML =
+          '<div class="success-message"><i class="fas fa-check-circle"></i> CODE: ' +
+          generatedCode +
+          "</div>";
+
+      } catch (error) {
+        console.error("Pair code error:", error);
+
+        codeDisplay.innerHTML =
+          '<div class="error-message"><i class="fas fa-exclamation-circle"></i> ' +
+          "Unable to generate pair code. Please try again." +
+          "</div>";
+      } finally {
+        loading.style.display = "none";
+        submitButton.disabled = false;
+      }
+    });
+
+    copyButton.addEventListener("click", async () => {
+      if (!generatedCode) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(generatedCode);
+
+        copyButton.innerHTML =
+          '<i class="fas fa-check"></i> Copied!';
+
+        setTimeout(() => {
+          copyButton.innerHTML =
+            '<i class="fas fa-copy"></i> Copy Pair Code';
+        }, 2000);
+
+      } catch (error) {
+        codeDisplay.textContent = "Copy failed. Please copy the code manually.";
+      }
+    });
+  </script>
+</body>
+</html>
