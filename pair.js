@@ -1,118 +1,315 @@
-const baileys = require("@whiskeysockets/baileys");
-const pino = require("pino");
-const fs = require("fs");
-const path = require("path");
+import express from "express";
+import fs from "fs";
+import path from "path";
+import pino from "pino";
+import archiver from "archiver";
 
-const {
-    default: makeWASocket,
+import {
+    makeWASocket,
     useMultiFileAuthState,
-    fetchLatestBaileysVersion,
+    delay,
+    makeCacheableSignalKeyStore,
     Browsers,
+    jidNormalizedUser,
+    fetchLatestBaileysVersion,
     DisconnectReason
-} = baileys;
+} from "@whiskeysockets/baileys";
 
-const NUMBER = String(process.env.PAIRING_NUMBER || "").replace(/\D/g, "");
-const SESSION_DIR = path.join(__dirname, "session");
+import pn from "awesome-phonenumber";
+import { upload } from "./mega.js";
 
-let sock;
-let pairingRequested = false;
-let reconnecting = false;
+const router = express.Router();
 
 const logger = pino({ level: "silent" });
 
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const activeSessions = new Set();
 
-async function startPair() {
-    if (!NUMBER) {
-        throw new Error("PAIRING_NUMBER secret is missing.");
-    }
-
-    fs.mkdirSync(SESSION_DIR, { recursive: true });
-
-    const { state, saveCreds } =
-        await useMultiFileAuthState(SESSION_DIR);
-
-    const { version } = await fetchLatestBaileysVersion();
-
-    sock = makeWASocket({
-        version,
-        logger,
-        auth: state,
-        browser: Browsers.ubuntu("Chrome"),
-        printQRInTerminal: false,
-        syncFullHistory: false,
-        markOnlineOnConnect: false,
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 60000,
-        keepAliveIntervalMs: 15000
-    });
-
-    sock.ev.on("creds.update", saveCreds);
-
-    sock.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect } = update;
-
-        if (connection === "connecting") {
-            console.log("[WHATSAPP] Connecting...");
+function removeFile(filePath) {
+    try {
+        if (fs.existsSync(filePath)) {
+            fs.rmSync(filePath, {
+                recursive: true,
+                force: true
+            });
         }
-
-        if (connection === "open") {
-            console.log("[SUCCESS] WhatsApp Connected!");
-            console.log("[SESSION] Authentication saved.");
-        }
-
-        if (connection === "close") {
-            const status =
-                lastDisconnect?.error?.output?.statusCode;
-
-            console.log("[WHATSAPP] Connection closed:", status);
-
-            if (status === DisconnectReason.loggedOut) {
-                console.log("[ERROR] WhatsApp logged out. Generate a new session.");
-                return;
-            }
-
-            if (!reconnecting) {
-                reconnecting = true;
-                console.log("[WHATSAPP] Reconnecting in 5 seconds...");
-
-                await sleep(5000);
-                reconnecting = false;
-
-                try {
-                    await startPair();
-                } catch (error) {
-                    console.error("[RECONNECT ERROR]", error.message);
-                }
-            }
-        }
-    });
-
-    if (!state.creds.registered && !pairingRequested) {
-        pairingRequested = true;
-
-        await sleep(3000);
-
-        try {
-            const code = await sock.requestPairingCode(NUMBER);
-
-            console.log("\n================================");
-            console.log("       DARK DILA-MD PAIR CODE");
-            console.log("================================");
-            console.log(code);
-            console.log("================================");
-            console.log("WhatsApp > Linked Devices");
-            console.log("Link with phone number");
-            console.log("================================\n");
-
-        } catch (error) {
-            pairingRequested = false;
-            console.error("[PAIR CODE ERROR]", error.message);
-        }
+    } catch (error) {
+        console.error("File cleanup error:", error.message);
     }
 }
 
-startPair().catch(error => {
-    console.error("[FATAL ERROR]", error);
-    process.exit(1);
+function zipFolder(sourceDir, outputPath) {
+    return new Promise((resolve, reject) => {
+        const output = fs.createWriteStream(outputPath);
+
+        const archive = archiver("zip", {
+            zlib: { level: 9 }
+        });
+
+        output.on("close", () => resolve());
+        output.on("error", reject);
+        archive.on("error", reject);
+
+        archive.pipe(output);
+        archive.directory(sourceDir, false);
+        archive.finalize().catch(reject);
+    });
+}
+
+function getStatusCode(error) {
+    return (
+        error?.output?.statusCode ||
+        error?.data?.statusCode ||
+        error?.statusCode
+    );
+}
+
+// ==========================================
+// PAIR ROUTE
+// ==========================================
+
+router.get("/", async (req, res) => {
+    let number = String(req.query.number || "")
+        .replace(/[^0-9]/g, "");
+
+    if (!number) {
+        return res.status(400).json({
+            code: "Phone number is required."
+        });
+    }
+
+    const phone = pn("+" + number);
+
+    if (!phone.isValid()) {
+        return res.status(400).json({
+            code: "Invalid phone number. Use your full international number."
+        });
+    }
+
+    number = phone.getNumber("e164").replace("+", "");
+
+    if (activeSessions.has(number)) {
+        return res.status(429).json({
+            code: "A pairing request is already active for this number."
+        });
+    }
+
+    activeSessions.add(number);
+
+    const sessionDir = path.resolve("./sessions", number);
+    const zipPath = path.resolve(
+        `./session_${number}_${Date.now()}.zip`
+    );
+
+    removeFile(sessionDir);
+
+    let socket;
+    let saveCreds;
+    let sessionUploaded = false;
+    let restartCount = 0;
+    let processingSession = false;
+
+    try {
+        const authState = await useMultiFileAuthState(sessionDir);
+
+        const state = authState.state;
+        saveCreds = authState.saveCreds;
+
+        const { version } = await fetchLatestBaileysVersion();
+
+        console.log(
+            "Starting DARK DILA-MD pairing session..."
+        );
+
+        async function createSocket() {
+            socket = makeWASocket({
+                version,
+
+                auth: {
+                    creds: state.creds,
+                    keys: makeCacheableSignalKeyStore(
+                        state.keys,
+                        logger
+                    )
+                },
+
+                printQRInTerminal: false,
+                logger,
+
+                browser: Browsers.windows("Chrome"),
+
+                markOnlineOnConnect: false,
+                generateHighQualityLinkPreview: false,
+
+                defaultQueryTimeoutMs: 60000,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
+                retryRequestDelayMs: 250,
+                maxRetries: 5
+            });
+
+            socket.ev.on("creds.update", saveCreds);
+
+            socket.ev.on(
+                "connection.update",
+                async (update) => {
+                    const {
+                        connection,
+                        lastDisconnect
+                    } = update;
+
+                    // ==================================
+                    // CONNECTION OPEN
+                    // ==================================
+
+                    if (connection === "open") {
+                        console.log(
+                            "DARK DILA-MD WhatsApp connected."
+                        );
+
+                        if (sessionUploaded || processingSession) {
+                            return;
+                        }
+
+                        processingSession = true;
+
+                        try {
+                            await delay(2000);
+
+                            console.log(
+                                "Creating session archive..."
+                            );
+
+                            await zipFolder(
+                                sessionDir,
+                                zipPath
+                            );
+
+                            console.log(
+                                "Uploading session to MEGA..."
+                            );
+
+                            const megaUrl = await upload(
+                                zipPath,
+                                path.basename(zipPath)
+                            );
+
+                            if (
+                                !megaUrl ||
+                                !String(megaUrl).includes("mega")
+                            ) {
+                                throw new Error(
+                                    "Invalid MEGA upload URL."
+                                );
+                            }
+
+                            const finalSessionId =
+                                "DARK DILA-MD=" + megaUrl;
+
+                            // Send the session ID to the linked account.
+                            const userJid = jidNormalizedUser(
+                                socket.user.id
+                            );
+
+                            await socket.sendMessage(userJid, {
+                                text: finalSessionId
+                            });
+
+                            sessionUploaded = true;
+
+                            console.log(
+                                "DARK DILA-MD session uploaded successfully."
+                            );
+
+                            // Remove temporary files after upload.
+                            removeFile(zipPath);
+                            removeFile(sessionDir);
+
+                        } catch (error) {
+                            console.error(
+                                "Session upload error:",
+                                error.message
+                            );
+
+                            removeFile(zipPath);
+
+                        } finally {
+                            processingSession = false;
+                            activeSessions.delete(number);
+                        }
+                    }
+
+                    // ==================================
+                    // CONNECTION CLOSED
+                    // ==================================
+
+                    if (connection === "close") {
+                        const reason = getStatusCode(
+                            lastDisconnect?.error
+                        );
+
+                        console.log(
+                            "WhatsApp connection closed. Code:",
+                            reason
+                        );
+
+                        if (
+                            reason === DisconnectReason.restartRequired &&
+                            restartCount < 2 &&
+                            !sessionUploaded
+                        ) {
+                            restartCount++;
+
+                            console.log(
+                                "Restarting WhatsApp connection..."
+                            );
+
+                            await delay(1500);
+                            await createSocket();
+
+                            return;
+                        }
+
+                        if (!sessionUploaded) {
+                            activeSessions.delete(number);
+                        }
+                    }
+                }
+            );
+        }
+
+        await createSocket();
+
+        // ==========================================
+        // REQUEST PAIRING CODE
+        // ==========================================
+
+        await delay(2000);
+
+        const code = await socket.requestPairingCode(number);
+
+        if (!res.headersSent) {
+            return res.status(200).json({
+                code
+            });
+        }
+
+    } catch (error) {
+        console.error(
+            "Pairing initialization error:",
+            error.message
+        );
+
+        activeSessions.delete(number);
+
+        removeFile(zipPath);
+        removeFile(sessionDir);
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                code: "Failed to start pairing session."
+            });
+        }
+    }
 });
+
+export default router;
